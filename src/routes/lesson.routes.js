@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../middlewares/errorHandler.js";
 import { verifySession } from "../middlewares/verifySession.js";
+import { optionalAuth } from "../middlewares/optionalAuth.js";
 import { verifyLessonOwner } from "../middlewares/verifyLessonOwner.js";
 import { verifyPremium } from "../middlewares/verifyPremium.js";
 import * as LessonController from "../controllers/lesson.controller.js";
@@ -19,8 +20,8 @@ router.get("/:userId/public-lessons", asyncHandler(LessonController.getUserPubli
 // Protected routes that must come before dynamic :id route
 router.get("/my-lessons", verifySession, asyncHandler(LessonController.getMyLessons));
 
-// Single lesson (handles premium lock inline)
-router.get("/:id", asyncHandler(LessonController.getLessonById));
+// Single lesson (handles premium lock inline) - optional auth for isFavorited flag
+router.get("/:id", asyncHandler(optionalAuth), asyncHandler(LessonController.getLessonById));
 
 // ── Protected routes ──────────────────────────────────────────────────────────
 router.post("/", verifySession, asyncHandler(LessonController.createLesson));

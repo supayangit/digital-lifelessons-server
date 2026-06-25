@@ -107,12 +107,21 @@ export async function getLessonById(lessonId, user) {
   // Premium lesson: creator, premium users, and admins can view — free users get a locked response
   if (lesson.accessLevel === ACCESS_LEVELS.PREMIUM) {
     if (!user) {
-      return { locked: true, lesson: sanitizePremiumLesson(lesson) };
+      const sanitized = sanitizePremiumLesson(lesson);
+      sanitized.isFavorited = false;
+      return { locked: true, lesson: sanitized };
     }
     const isOwner = lesson.creatorId.toString() === user.id;
     const canAccess = isOwner || user.isPremium || user.role === "admin";
     if (!canAccess) {
-      return { locked: true, lesson: sanitizePremiumLesson(lesson) };
+      // Include isFavorited for authenticated users even when the lesson is locked
+      const fav = await db.collection("favorites").findOne({
+        userId: new ObjectId(user.id),
+        lessonId: lesson._id,
+      });
+      const sanitized = sanitizePremiumLesson(lesson);
+      sanitized.isFavorited = !!fav;
+      return { locked: true, lesson: sanitized };
     }
   }
 
@@ -120,6 +129,17 @@ export async function getLessonById(lessonId, user) {
   db.collection("lessons")
     .updateOne({ _id: lesson._id }, { $inc: { viewsCount: 1 } })
     .catch(() => {});
+
+  // Attach isFavorited when user is present
+  if (user) {
+    const fav = await db.collection("favorites").findOne({
+      userId: new ObjectId(user.id),
+      lessonId: lesson._id,
+    });
+    lesson.isFavorited = !!fav;
+  } else {
+    lesson.isFavorited = false;
+  }
 
   return { locked: false, lesson };
 }
