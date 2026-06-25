@@ -65,8 +65,7 @@ export async function deleteLesson(req, res) {
 }
 
 export async function toggleVisibility(req, res) {
-  const { visibility } = visibilitySchema.parse(req.body);
-  const lesson = await LessonService.toggleVisibility(req.params.id, visibility);
+  const lesson = await LessonService.toggleVisibility(req.params.id);
   res.json({ success: true, lesson });
 }
 

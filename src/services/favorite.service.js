@@ -138,5 +138,10 @@ export async function getMyFavorites(userId, query) {
 
   const total = countResult[0]?.total || 0;
 
-  return { favorites, pagination: buildPaginationMeta({ page, limit, total }) };
+  // Return the joined lesson documents as both `favorites` and `lessons` for clarity.
+  return {
+    favorites,
+    lessons: favorites,
+    pagination: buildPaginationMeta({ page, limit, total }),
+  };
 }

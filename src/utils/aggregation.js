@@ -66,26 +66,152 @@ export async function getUserDashboardAnalytics(userId, userObjectId) {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfWeek = new Date(now);
   startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
 
-  const [totalLessons, totalFavorites, recentLessons, weeklyStats, monthlyStats] =
-    await Promise.all([
-      db.collection("lessons").countDocuments({ creatorId: userObjectId }),
-      db.collection("favorites").countDocuments({ userId: userObjectId }),
-      db
-        .collection("lessons")
-        .find({ creatorId: userObjectId })
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .toArray(),
-      db
-        .collection("lessons")
-        .countDocuments({ creatorId: userObjectId, createdAt: { $gte: startOfWeek } }),
-      db
-        .collection("lessons")
-        .countDocuments({ creatorId: userObjectId, createdAt: { $gte: startOfMonth } }),
-    ]);
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
-  // Chart data: lessons created per day for the last 30 days
+  const [
+    totalLessons,
+    totalFavorites,
+    totalLikes,
+    recentLessons,
+    weeklyLessonCounts,
+    weeklyLikeCounts,
+    monthlyLessonCounts,
+    monthlyFavoriteCounts,
+  ] = await Promise.all([
+    db.collection("lessons").countDocuments({ creatorId: userObjectId }),
+    db.collection("favorites").countDocuments({ userId: userObjectId }),
+    db.collection("likes").countDocuments({ userId: userObjectId }),
+    db
+      .collection("lessons")
+      .find({ creatorId: userObjectId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .toArray(),
+    db
+      .collection("lessons")
+      .aggregate([
+        { $match: { creatorId: userObjectId, createdAt: { $gte: startOfWeek } } },
+        {
+          $group: {
+            _id: { $isoDayOfWeek: "$createdAt" },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            dayOfWeek: "$_id",
+            lessons: "$count",
+          },
+        },
+      ])
+      .toArray(),
+    db
+      .collection("likes")
+      .aggregate([
+        { $match: { userId: userObjectId, createdAt: { $gte: startOfWeek } } },
+        {
+          $group: {
+            _id: { $isoDayOfWeek: "$createdAt" },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            dayOfWeek: "$_id",
+            likes: "$count",
+          },
+        },
+      ])
+      .toArray(),
+    db
+      .collection("lessons")
+      .aggregate([
+        { $match: { creatorId: userObjectId, createdAt: { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            year: "$_id.year",
+            month: "$_id.month",
+            lessons: "$count",
+          },
+        },
+      ])
+      .toArray(),
+    db
+      .collection("favorites")
+      .aggregate([
+        { $match: { userId: userObjectId, createdAt: { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            year: "$_id.year",
+            month: "$_id.month",
+            favorites: "$count",
+          },
+        },
+      ])
+      .toArray(),
+  ]);
+
+  const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weeklyLessonMap = new Map(weeklyLessonCounts.map((item) => [item.dayOfWeek, item.lessons]));
+  const weeklyLikeMap = new Map(weeklyLikeCounts.map((item) => [item.dayOfWeek, item.likes]));
+
+  const weeklyActivity = daysOfWeek.map((dayLabel, index) => {
+    const dayOfWeek = index + 1; // ISO dayOfWeek: 1 = Monday
+    return {
+      day: dayLabel,
+      lessons: weeklyLessonMap.get(dayOfWeek) || 0,
+      likes: weeklyLikeMap.get(dayOfWeek) || 0,
+    };
+  });
+
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthlyLessonMap = new Map(
+    monthlyLessonCounts.map((item) => [`${item.year}-${item.month}`, item.lessons])
+  );
+  const monthlyFavoriteMap = new Map(
+    monthlyFavoriteCounts.map((item) => [`${item.year}-${item.month}`, item.favorites])
+  );
+
+  const monthlyActivity = [];
+  for (let offset = 0; offset < 6; offset += 1) {
+    const monthDate = new Date(sixMonthsAgo.getFullYear(), sixMonthsAgo.getMonth() + offset, 1);
+    const key = `${monthDate.getFullYear()}-${monthDate.getMonth() + 1}`;
+    monthlyActivity.push({
+      month: monthNames[monthDate.getMonth()],
+      lessons: monthlyLessonMap.get(key) || 0,
+      favorites: monthlyFavoriteMap.get(key) || 0,
+    });
+  }
+
+  const [weeklyStats, monthlyStats] = await Promise.all([
+    db.collection("lessons").countDocuments({ creatorId: userObjectId, createdAt: { $gte: startOfWeek } }),
+    db.collection("lessons").countDocuments({ creatorId: userObjectId, createdAt: { $gte: startOfMonth } }),
+  ]);
+
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const chartData = await db
     .collection("lessons")
@@ -103,7 +229,17 @@ export async function getUserDashboardAnalytics(userId, userObjectId) {
     ])
     .toArray();
 
-  return { totalLessons, totalFavorites, recentLessons, weeklyStats, monthlyStats, chartData };
+  return {
+    totalLessons,
+    totalFavorites,
+    totalLikes,
+    recentLessons,
+    weeklyStats,
+    monthlyStats,
+    weeklyActivity,
+    monthlyActivity,
+    chartData,
+  };
 }
 
 /**

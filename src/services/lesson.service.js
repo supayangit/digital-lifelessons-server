@@ -220,18 +220,28 @@ export async function deleteLesson(lessonId) {
   return { deleted: true };
 }
 
-export async function toggleVisibility(lessonId, visibility) {
+export async function toggleVisibility(lessonId) {
   const db = getDB();
-  const result = await db.collection("lessons").findOneAndUpdate(
-    { _id: new ObjectId(lessonId) },
-    { $set: { visibility, updatedAt: new Date() } },
-    { returnDocument: "after" }
-  );
-  if (!result) {
+  const lesson = await db.collection("lessons").findOne({ _id: new ObjectId(lessonId) });
+  if (!lesson) {
     const err = new Error("Lesson not found.");
     err.statusCode = 404;
     throw err;
   }
+
+  const nextVisibility = lesson.visibility === VISIBILITY.PRIVATE ? VISIBILITY.PUBLIC : VISIBILITY.PRIVATE;
+  const result = await db.collection("lessons").findOneAndUpdate(
+    { _id: lesson._id },
+    { $set: { visibility: nextVisibility, updatedAt: new Date() } },
+    { returnDocument: "after" }
+  );
+
+  if (!result) {
+    const err = new Error("Failed to toggle lesson visibility.");
+    err.statusCode = 500;
+    throw err;
+  }
+
   return result;
 }
 
