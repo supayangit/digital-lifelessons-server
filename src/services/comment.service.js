@@ -27,7 +27,7 @@ export async function createComment(data, user) {
     userId: new ObjectId(user.id),
     userName: user.name,
     userPhoto: user.image || null,
-    comment: data.comment,
+    content: data.content,
     createdAt: now,
   };
 
