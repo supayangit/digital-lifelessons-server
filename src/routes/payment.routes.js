@@ -14,6 +14,13 @@ router.post(
   asyncHandler(PaymentController.stripeWebhook)
 );
 
+router.get("/webhook", (req, res) => {
+  res.status(405).json({
+    success: false,
+    message: "Stripe webhook endpoint accepts POST only. Do not visit this URL from a browser.",
+  });
+});
+
 // Create checkout session (protected)
 router.post(
   "/create-checkout-session",

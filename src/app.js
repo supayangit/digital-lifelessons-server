@@ -69,6 +69,9 @@ app.all("/api/auth/*splat", authLimiter, (req, res) => {
 
 // ── Body Parsing ───────────────────────────────────────────────────────────────
 // Note: Stripe webhook route uses raw body — handled per-route in payment.routes.js
+// Mount payment routes before JSON parsing so /api/payments/webhook can receive raw body.
+app.use("/api/payments", paymentRoutes);
+
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use(cookieParser());
@@ -110,7 +113,6 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/likes", likeRoutes);
 app.use("/api/reports", reportRoutes);
-app.use("/api/payments", paymentRoutes);
 app.use("/api/dashboard", analyticsRoutes);
 app.use("/api/admin", adminRoutes);
 

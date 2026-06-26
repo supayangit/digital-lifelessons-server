@@ -54,8 +54,13 @@ export async function handleWebhook(rawBody, signature) {
     throw error;
   }
 
-  if (event.type === "checkout.session.completed") {
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded"
+  ) {
     const session = event.data.object;
+
+    console.log("[v0] Stripe webhook event received:", event.type, "session", session.id);
 
     // Idempotency check — prevent duplicate processing
     const existingPayment = await db
@@ -68,14 +73,36 @@ export async function handleWebhook(rawBody, signature) {
     }
 
     const userId = session.metadata?.userId;
-    const userEmail = session.metadata?.userEmail;
+    const userEmail = session.metadata?.userEmail || session.customer_details?.email;
 
-    if (!userId) {
-      console.error("[v0] No userId in session metadata.");
+    let userFilter = null;
+    let userOid = null;
+
+    if (userId) {
+      try {
+        userOid = new ObjectId(userId);
+        userFilter = { _id: userOid };
+      } catch (err) {
+        console.warn("[v0] Invalid metadata userId in Stripe session:", userId);
+      }
+    }
+
+    if (!userFilter && userEmail) {
+      userFilter = { email: userEmail };
+    }
+
+    if (!userFilter) {
+      console.error("[v0] No usable user identifier found in Stripe session metadata or customer details.");
       return { received: true };
     }
 
-    const userOid = new ObjectId(userId);
+    const user = await db.collection("user").findOne(userFilter);
+    if (!user) {
+      console.error("[v0] User not found for Stripe session:", userFilter);
+      return { received: true };
+    }
+
+    userOid = user._id;
 
     // Update user to premium
     await db.collection("user").updateOne(
@@ -94,7 +121,7 @@ export async function handleWebhook(rawBody, signature) {
       createdAt: new Date(),
     });
 
-    console.log(`[v0] User ${userId} upgraded to premium.`);
+    console.log(`[v0] User ${user._id.toString()} upgraded to premium.`);
   }
 
   return { received: true };

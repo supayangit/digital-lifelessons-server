@@ -10,6 +10,8 @@ function formatUserProfile(user, lessonCount, favoriteCount) {
     bio: safeUser.bio || null,
     image: safeUser.image || null,
     role: safeUser.role,
+    isPremium: Boolean(safeUser.isPremium),
+    premiumSince: safeUser.premiumSince || null,
     lessonsCount: lessonCount,
     favoritesCount: favoriteCount,
   };
