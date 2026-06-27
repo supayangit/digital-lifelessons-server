@@ -22,6 +22,9 @@ import likeRoutes from "./routes/like.routes.js";
 
 const app = express();
 
+// Trust reverse proxy for secure cookies on Render
+app.set("trust proxy", 1);
+
 // ── Security Middleware ────────────────────────────────────────────────────────
 app.use(
   helmet({
