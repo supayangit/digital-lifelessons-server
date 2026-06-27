@@ -7,6 +7,7 @@ import {
   accessLevelSchema,
 } from "../validations/lesson.validation.js";
 import { calculateReadingTime } from "../utils/readingTime.js";
+import { ACCESS_LEVELS } from "../constants/index.js";
 
 
 
@@ -70,7 +71,16 @@ export async function toggleVisibility(req, res) {
 }
 
 export async function changeAccessLevel(req, res) {
-  const { accessLevel } = accessLevelSchema.parse(req.body);
+  let accessLevel;
+  if (req.body && req.body.accessLevel) {
+    accessLevel = accessLevelSchema.parse(req.body).accessLevel;
+  } else {
+    const result = await LessonService.getLessonById(req.params.id, req.user || null);
+    const existingLesson = result.lesson || result;
+    const current = existingLesson.accessLevel;
+    accessLevel = current === ACCESS_LEVELS.FREE ? ACCESS_LEVELS.PREMIUM : ACCESS_LEVELS.FREE;
+  }
+
   const lesson = await LessonService.changeAccessLevel(req.params.id, accessLevel);
   res.json({ success: true, lesson });
 }

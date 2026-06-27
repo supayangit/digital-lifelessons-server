@@ -15,6 +15,7 @@ router.get("/overview", asyncHandler(AdminController.getOverview));
 // Users
 router.get("/users", asyncHandler(AdminController.listUsers));
 router.patch("/users/:id/role", asyncHandler(AdminController.updateUserRole));
+router.patch("/users/:id/subscription", asyncHandler(AdminController.updateUserSubscription));
 router.delete("/users/:id", asyncHandler(AdminController.deleteUser));
 
 // Lessons

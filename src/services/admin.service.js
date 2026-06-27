@@ -28,7 +28,15 @@ export async function listUsers(query) {
     db.collection("user").countDocuments(filter),
   ]);
 
-  return { users, pagination: buildPaginationMeta({ page, limit, total }) };
+  // Add lessonsCount for each user
+  const usersWithCounts = await Promise.all(
+    users.map(async (user) => {
+      const lessonsCount = await db.collection("lessons").countDocuments({ creatorId: user._id });
+      return { ...user, lessonsCount };
+    })
+  );
+
+  return { users: usersWithCounts, pagination: buildPaginationMeta({ page, limit, total }) };
 }
 
 export async function updateUserRole(userId, role) {
@@ -50,6 +58,35 @@ export async function updateUserRole(userId, role) {
   const result = await db.collection("user").findOneAndUpdate(
     { _id: new ObjectId(userId) },
     { $set: { role, updatedAt: new Date() } },
+    { returnDocument: "after", projection: { password: 0 } }
+  );
+
+  if (!result) {
+    const err = new Error("User not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  return result;
+}
+
+export async function updateUserSubscription(userId, isPremium) {
+  const db = getDB();
+
+  if (!ObjectId.isValid(userId)) {
+    const err = new Error("Invalid user ID.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const updateData = { isPremium, updatedAt: new Date() };
+  if (isPremium) {
+    updateData.premiumSince = new Date();
+  }
+
+  const result = await db.collection("user").findOneAndUpdate(
+    { _id: new ObjectId(userId) },
+    { $set: updateData },
     { returnDocument: "after", projection: { password: 0 } }
   );
 

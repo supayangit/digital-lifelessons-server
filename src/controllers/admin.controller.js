@@ -19,6 +19,15 @@ export async function updateUserRole(req, res) {
   res.json({ success: true, user });
 }
 
+export async function updateUserSubscription(req, res) {
+  const { isPremium } = req.body;
+  if (isPremium === undefined) {
+    return res.status(400).json({ success: false, message: "isPremium is required." });
+  }
+  const user = await AdminService.updateUserSubscription(req.params.id, isPremium);
+  res.json({ success: true, user });
+}
+
 export async function deleteUser(req, res) {
   await AdminService.deleteUser(req.params.id);
   res.json({ success: true, message: "User deleted." });

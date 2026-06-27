@@ -334,7 +334,7 @@ export async function getReportedLessonsAggregation({ skip = 0, limit = 20 } = {
           as: "lesson",
         },
       },
-      { $unwind: { path: "$lesson", preserveNullAndEmpty: true } },
+      { $unwind: { path: "$lesson", preserveNullAndEmptyArrays: true } },
       {
         $project: {
           lessonId: "$_id",

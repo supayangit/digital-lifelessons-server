@@ -20,5 +20,5 @@ export async function getMyPublicLessons(req, res) {
 export async function updateProfile(req, res) {
   const data = updateProfileSchema.parse(req.body);
   const user = await UserService.updateUserProfile(req.user.id, data);
-  res.json({ success: true, user });
+  res.json({ success: true, message: "Profile updated successfully.", user });
 }

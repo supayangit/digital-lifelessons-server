@@ -44,8 +44,8 @@ export async function closeDB() {
 
 async function createIndexes(db) {
   // users
-  await db.collection("users").createIndex({ email: 1 }, { unique: true });
-  await db.collection("users").createIndex({ role: 1 });
+  await db.collection("user").createIndex({ email: 1 }, { unique: true });
+  await db.collection("user").createIndex({ role: 1 });
 
   // lessons
   await db.collection("lessons").createIndex({ creatorId: 1 });
