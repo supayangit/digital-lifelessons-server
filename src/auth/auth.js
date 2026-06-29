@@ -38,7 +38,7 @@ export function createAuth() {
       crossOrigin: true,
       defaultCookieAttributes: {
         httpOnly: true,
-        sameSite: "none",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         secure: process.env.NODE_ENV === "production",
         path: "/",
       },

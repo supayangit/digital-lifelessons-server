@@ -44,7 +44,7 @@ app.use(
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
+  max: 1000, // Increased for development
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many requests. Please try again later." },
@@ -54,7 +54,7 @@ app.use(limiter);
 // Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 120, // Increased from 20 for development
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many authentication attempts. Please slow down." },
