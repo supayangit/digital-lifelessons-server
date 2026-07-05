@@ -98,7 +98,7 @@ Handled by Better Auth. All standard endpoints are available:
 |---|---|---|---|
 | GET | `/` | Public | List lessons with pagination, search, filter, sort |
 | GET | `/featured` | Public | Featured lessons |
-| GET | `/top-contributors` | Public | Top lesson contributors this week |
+| GET | `/top-contributors` | Public | Top lesson contributors all time |
 | GET | `/most-saved` | Public | Most favorited lessons |
 | GET | `/:id` | Public* | Get lesson (premium lock for free users) |
 | POST | `/` | Session | Create lesson |

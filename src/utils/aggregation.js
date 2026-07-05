@@ -17,11 +17,10 @@ export async function getMostSavedLessons({ limit = 10, skip = 0 } = {}) {
 }
 
 /**
- * Returns top contributors with most lessons created this week.
+ * Returns top contributors with most lessons created all time.
  */
 export async function getTopContributors({ limit = 10 } = {}) {
   const db = getDB();
-  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   return db
     .collection("lessons")
@@ -29,7 +28,6 @@ export async function getTopContributors({ limit = 10 } = {}) {
       {
         $match: {
           visibility: "public",
-          createdAt: { $gte: oneWeekAgo },
         },
       },
       {
