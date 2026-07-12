@@ -32,9 +32,23 @@ app.use(
   })
 );
 
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
+const CLIENT_URLS = [
+  ...((process.env.CLIENT_URLS || "")
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean)),
+  CLIENT_URL,
+];
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: function (origin, callback) {
+      if (!origin || CLIENT_URLS.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS policy blocked origin: ${origin}`), false);
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
@@ -125,6 +139,27 @@ app.use(mongoSanitize());
 // ── Health Check ───────────────────────────────────────────────────────────────
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// ── Temporary Debug Endpoint (remove after troubleshooting) ───────────────────
+app.all("/api/debug/headers", (req, res) => {
+  try {
+    console.log('[debug] /api/debug/headers incoming', {
+      method: req.method,
+      url: req.originalUrl,
+      authorization: req.headers.authorization || null,
+      cookie: req.headers.cookie || null,
+    });
+  } catch (e) {
+    // ignore logging errors
+  }
+
+  return res.json({
+    success: true,
+    method: req.method,
+    headers: req.headers,
+    cookie: req.headers.cookie || null,
+  });
 });
 
 // ── Landing Page ───────────────────────────────────────────────────────────────
