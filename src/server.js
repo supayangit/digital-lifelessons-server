@@ -3,9 +3,9 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 dotenv.config();
 
-const { connectDB } = await import("./config/db.js");
-const { createAuth } = await import("./auth/auth.js");
-const { default: app } = await import("./app.js");
+import { connectDB } from "./config/db.js";
+import { createAuth } from "./auth/auth.js";
+import app from "./app.js";
 
 const PORT = process.env.PORT || 5000;
 

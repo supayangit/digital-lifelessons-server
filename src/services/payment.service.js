@@ -1,10 +1,10 @@
 import { ObjectId } from "mongodb";
 import { getDB } from "../config/db.js";
-import stripe from "../config/stripe.js";
+import getStripe from "../config/stripe.js";
 import { PREMIUM_PRICE_BDT, PREMIUM_CURRENCY, PAYMENT_STATUS } from "../constants/index.js";
 
 export async function createCheckoutSession(user) {
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
     customer_email: user.email,
@@ -42,7 +42,7 @@ export async function handleWebhook(rawBody, signature) {
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       rawBody,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET
