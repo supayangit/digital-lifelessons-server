@@ -1,13 +1,8 @@
 import { Router } from "express";
 import { asyncHandler } from "../middlewares/errorHandler.js";
-import { verifySession } from "../middlewares/verifySession.js";
-import { verifyAdmin } from "../middlewares/verifyAdmin.js";
 import * as AdminController from "../controllers/admin.controller.js";
 
 const router = Router();
-
-// All admin routes require session + admin role
-router.use(verifySession, verifyAdmin);
 
 // Overview / Analytics
 router.get("/overview", asyncHandler(AdminController.getOverview));
@@ -27,9 +22,6 @@ router.delete("/lessons/:id", asyncHandler(AdminController.deleteLesson));
 // Reports
 router.get("/reported-lessons", asyncHandler(AdminController.getReportedLessons));
 router.patch("/reported-lessons/:lessonId/ignore", asyncHandler(AdminController.ignoreReports));
-router.delete(
-  "/reported-lessons/:lessonId",
-  asyncHandler(AdminController.deleteReportedLesson)
-);
+router.delete("/reported-lessons/:lessonId", asyncHandler(AdminController.deleteReportedLesson));
 
 export default router;
