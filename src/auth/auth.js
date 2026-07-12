@@ -38,8 +38,8 @@ export function createAuth() {
       crossOrigin: true,
       defaultCookieAttributes: {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        secure: process.env.NODE_ENV === "production",
+        sameSite: "none",
+        secure: true, // MUST be true when sameSite="none" per browser security requirements
         path: "/",
       },
     },
