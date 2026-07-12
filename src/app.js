@@ -64,12 +64,50 @@ const authLimiter = rateLimit({
 app.use(cookieParser());
 
 app.use("/api/auth", (req, res) => {
-  console.log("AUTH HANDLER HIT");
+  // Basic debug: log incoming auth request headers (authorization & cookie)
+  console.log("[debug] AUTH HANDLER HIT", {
+    method: req.method,
+    url: req.originalUrl,
+    authorization: req.headers.authorization || null,
+    cookie: req.headers.cookie || null,
+  });
+
+  // Intercept setHeader to capture any Set-Cookie header emitted by better-auth
+  const originalSetHeader = res.setHeader && res.setHeader.bind(res);
+  if (originalSetHeader) {
+    res.setHeader = (...args) => {
+      try {
+        if (typeof args[0] === 'string' && args[0].toLowerCase() === 'set-cookie') {
+          console.log('[debug] AUTH set-cookie ->', args[1]);
+        }
+      } catch (e) {
+        // ignore
+      }
+      return originalSetHeader(...args);
+    };
+  }
+
   return toNodeHandler(getAuth())(req, res);
 });
 // ── Better Auth Handler ────────────────────────────────────────────────────────
 // IMPORTANT: Better Auth must be registered BEFORE express.json() to handle its own body parsing
 app.all("/api/auth/*splat", authLimiter, (req, res) => {
+  console.log('[debug] AUTH wildcard handler', { method: req.method, url: req.originalUrl, authorization: req.headers.authorization || null, cookie: req.headers.cookie || null });
+
+  const originalSetHeader = res.setHeader && res.setHeader.bind(res);
+  if (originalSetHeader) {
+    res.setHeader = (...args) => {
+      try {
+        if (typeof args[0] === 'string' && args[0].toLowerCase() === 'set-cookie') {
+          console.log('[debug] AUTH wildcard set-cookie ->', args[1]);
+        }
+      } catch (e) {
+        // ignore
+      }
+      return originalSetHeader(...args);
+    };
+  }
+
   return toNodeHandler(getAuth())(req, res);
 });
 

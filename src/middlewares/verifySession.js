@@ -47,6 +47,13 @@ async function findOrCreateUser(db, sessionUser) {
  */
 export async function verifySession(req, res, next) {
   try {
+    // Debug: log incoming auth headers for troubleshooting cross-origin issues
+    console.log('[debug] verifySession incoming', {
+      method: req.method,
+      url: req.originalUrl,
+      authorization: req.headers.authorization || null,
+      cookie: req.headers.cookie || null,
+    });
     const auth = getAuth();
     const session = await auth.api.getSession({ headers: req.headers });
 
