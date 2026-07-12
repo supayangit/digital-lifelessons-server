@@ -2,9 +2,11 @@ import { MongoClient } from "mongodb";
 
 let client;
 let db;
+let connectPromise = null;
 
 export async function connectDB() {
   if (db) return db;
+  if (connectPromise) return await connectPromise;
 
   const uri = process.env.MONGODB_URI;
   const dbName = process.env.DB_NAME;
@@ -12,20 +14,25 @@ export async function connectDB() {
   if (!uri) throw new Error("MONGODB_URI is not defined in environment variables");
   if (!dbName) throw new Error("DB_NAME is not defined in environment variables");
 
-  client = new MongoClient(uri, {
-    maxPoolSize: 10,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  });
+  // Ensure only one concurrent connect attempt
+  connectPromise = (async () => {
+    client = new MongoClient(uri, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
 
-  await client.connect();
-  db = client.db(dbName);
+    await client.connect();
+    db = client.db(dbName);
 
-  // Create indexes for performance
-  await createIndexes(db);
+    // Create indexes for performance
+    await createIndexes(db);
 
-  console.log(`[v0] Connected to MongoDB: ${dbName}`);
-  return db;
+    console.log(`[v0] Connected to MongoDB: ${dbName}`);
+    return db;
+  })();
+
+  return await connectPromise;
 }
 
 export function getDB() {
@@ -38,6 +45,7 @@ export async function closeDB() {
     await client.close();
     db = null;
     client = null;
+    connectPromise = null;
     console.log("[v0] MongoDB connection closed.");
   }
 }

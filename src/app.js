@@ -7,6 +7,24 @@ import mongoSanitize from "express-mongo-sanitize";
 
 import { toNodeHandler } from "better-auth/node";
 import { getAuth } from "./auth/auth.js";
+import { connectDB } from "./config/db.js";
+import { createAuth } from "./auth/auth.js";
+
+// Ensure DB and Auth are initialized before the module finishes loading.
+// Top-level await delays module evaluation until initialization completes,
+// which is beneficial for serverless platforms (Vercel) so handlers don't run
+// before DB/auth are ready.
+try {
+  await connectDB();
+  try {
+    createAuth();
+    console.log("[v0] DB & Auth initialized (top-level await)");
+  } catch (e) {
+    console.error("[v0] createAuth failed during top-level init:", e.message);
+  }
+} catch (err) {
+  console.error("[v0] DB init failed during top-level await:", err.message);
+}
 
 import { errorHandler } from "./middlewares/errorHandler.js";
 

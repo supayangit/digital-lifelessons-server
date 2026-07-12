@@ -5,10 +5,18 @@ import { getDB } from "../config/db.js";
 
 let authInstance;
 
+function parseClientUrls() {
+  const envList = (process.env.CLIENT_URLS || "").split(",").map((u) => u.trim()).filter(Boolean);
+  const primary = process.env.CLIENT_URL;
+  return [...envList, primary].filter(Boolean);
+}
+
 export function createAuth() {
   if (authInstance) return authInstance;
 
   const db = getDB();
+
+  const trustedOrigins = parseClientUrls();
 
   authInstance = betterAuth({
     database: mongodbAdapter(db),
@@ -44,7 +52,7 @@ export function createAuth() {
       },
     },
 
-    trustedOrigins: [process.env.CLIENT_URL].filter(Boolean),
+    trustedOrigins: trustedOrigins,
 
     user: {
       additionalFields: {
