@@ -1,4 +1,9 @@
 import express from "express";
+import dotenv from "dotenv";
+
+// Load environment variables early so top-level initialization has them available.
+dotenv.config({ path: ".env.local" });
+dotenv.config();
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
@@ -11,19 +16,23 @@ import { connectDB } from "./config/db.js";
 import { createAuth } from "./auth/auth.js";
 
 // Ensure DB and Auth are initialized before the module finishes loading.
-// Top-level await delays module evaluation until initialization completes,
-// which is beneficial for serverless platforms (Vercel) so handlers don't run
-// before DB/auth are ready.
-try {
-  await connectDB();
+// Load env first (above) and only attempt DB init when a URI is present to
+// avoid noisy errors in environments that import this module before server
+// bootstrap sets env vars.
+if (process.env.MONGODB_URI) {
   try {
-    createAuth();
-    console.log("[v0] DB & Auth initialized (top-level await)");
-  } catch (e) {
-    console.error("[v0] createAuth failed during top-level init:", e.message);
+    await connectDB();
+    try {
+      createAuth();
+      console.log("[v0] DB & Auth initialized (top-level await)");
+    } catch (e) {
+      console.error("[v0] createAuth failed during top-level init:", e.message);
+    }
+  } catch (err) {
+    console.error("[v0] DB init failed during top-level await:", err.message);
   }
-} catch (err) {
-  console.error("[v0] DB init failed during top-level await:", err.message);
+} else {
+  console.warn('[v0] Skipping top-level DB init: MONGODB_URI not set');
 }
 
 import { errorHandler } from "./middlewares/errorHandler.js";
@@ -178,6 +187,59 @@ app.all("/api/debug/headers", (req, res) => {
     headers: req.headers,
     cookie: req.headers.cookie || null,
   });
+});
+
+// ── Debug Status / Session / Signout Endpoints (temporary) ──────────────────
+app.get("/api/debug/status", async (req, res) => {
+  let dbReady = false;
+  let authReady = false;
+  try {
+    const db = await connectDB();
+    // ping to validate connection
+    await db.command({ ping: 1 });
+    dbReady = true;
+  } catch (e) {
+    console.error('[v0] debug status DB check failed:', e.message);
+  }
+
+  try {
+    const auth = getAuth();
+    authReady = !!auth;
+  } catch (e) {
+    console.error('[v0] debug status auth check failed:', e.message);
+  }
+
+  const clientUrls = (process.env.CLIENT_URLS || '')
+    .split(',')
+    .map((u) => u.trim())
+    .filter(Boolean);
+  if (process.env.CLIENT_URL) clientUrls.push(process.env.CLIENT_URL);
+
+  return res.json({ success: true, db: dbReady, auth: authReady, trustedOrigins: clientUrls });
+});
+
+// Return the resolved session for the incoming request (useful for debugging tokens/cookies)
+app.get('/api/debug/session', async (req, res) => {
+  try {
+    const auth = getAuth();
+    const session = await auth.api.getSession({ headers: req.headers });
+    return res.json({ success: true, session });
+  } catch (e) {
+    console.error('[v0] debug session error:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// Trigger sign-out using incoming headers (clears server-side session if cookie/token provided)
+app.post('/api/debug/signout', async (req, res) => {
+  try {
+    const auth = getAuth();
+    await auth.api.signOut({ headers: req.headers });
+    return res.json({ success: true, message: 'Signed out (if session existed).' });
+  } catch (e) {
+    console.error('[v0] debug signout error:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
 });
 
 // ── Landing Page ───────────────────────────────────────────────────────────────
