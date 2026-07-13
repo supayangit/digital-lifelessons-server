@@ -65,23 +65,32 @@ export async function verifySession(req, res, next) {
     });
 
     // Fallback: some clients persist the session token and send it as
-    // `Authorization: Bearer <token>` instead of sending the cookie. If the
-    // normal header-based lookup failed but an Authorization header exists,
-    // try simulating the cookie header (better-auth reads cookies) so the
-    // session can be resolved.
+    // `Authorization: Bearer <token>` instead of sending the cookie. Try
+    // multiple strategies so we can handle browsers that refuse Set-Cookie:
+    // 1) Ask better-auth to resolve session from Authorization header alone.
+    // 2) If that fails, simulate the cookie header using the token and retry.
     if ((!session || !session.user) && req.headers.authorization) {
+      const authHeader = String(req.headers.authorization || "");
+      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+      try {
+        console.log('[v0] verifySession fallback: trying auth.api.getSession with authorization header')
+        session = await auth.api.getSession({ headers: { authorization: req.headers.authorization } });
+        console.log('[v0] verifySession fallback: auth-header attempt result', { hasSession: !!session, userId: session?.user?.id || null });
+      } catch (e) {
+        console.warn('[v0] verifySession auth-header attempt failed:', e?.message || e);
+      }
+
+      if ((!session || !session.user) && token) {
         try {
-          const authHeader = String(req.headers.authorization || "");
-          const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-          if (token) {
-            const fakeCookie = `__Secure-better-auth.session_token=${token}`;
-            console.log('[v0] verifySession fallback: trying token via cookie simulation');
-            session = await auth.api.getSession({ headers: { cookie: fakeCookie, authorization: req.headers.authorization } });
-          }
+          const fakeCookie = `__Secure-better-auth.session_token=${token}`;
+          console.log('[v0] verifySession fallback: trying token via cookie simulation');
+          session = await auth.api.getSession({ headers: { cookie: fakeCookie, authorization: req.headers.authorization } });
+          console.log('[v0] verifySession fallback: cookie-sim attempt result', { hasSession: !!session, userId: session?.user?.id || null });
         } catch (e) {
-          console.warn('[v0] verifySession fallback failed:', e?.message || e);
+          console.warn('[v0] verifySession fallback (cookie-sim) failed:', e?.message || e);
         }
       }
+    }
 
     if (!session || !session.user) {
       console.error("[v0] verifySession missing session/user", {
