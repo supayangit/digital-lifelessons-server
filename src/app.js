@@ -111,7 +111,21 @@ app.use("/api/auth", (req, res) => {
     url: req.originalUrl,
     authorization: req.headers.authorization || null,
     cookie: req.headers.cookie || null,
+    userAgent: req.headers['user-agent'] || null,
+    host: req.headers.host || null,
   });
+
+  // Log request path details for login and token retrieval flows
+  if (req.originalUrl.includes('/sign-in') || req.originalUrl.includes('/get-session')) {
+    console.log('[debug] AUTH login-phase request', {
+      method: req.method,
+      path: req.originalUrl,
+      headers: {
+        authorization: req.headers.authorization || null,
+        cookie: req.headers.cookie || null,
+      },
+    });
+  }
 
   // Intercept setHeader to capture any Set-Cookie header emitted by better-auth
   const originalSetHeader = res.setHeader && res.setHeader.bind(res);
@@ -133,7 +147,18 @@ app.use("/api/auth", (req, res) => {
 // ── Better Auth Handler ────────────────────────────────────────────────────────
 // IMPORTANT: Better Auth must be registered BEFORE express.json() to handle its own body parsing
 app.all("/api/auth/*splat", authLimiter, (req, res) => {
-  console.log('[debug] AUTH wildcard handler', { method: req.method, url: req.originalUrl, authorization: req.headers.authorization || null, cookie: req.headers.cookie || null });
+  const authLog = {
+    method: req.method,
+    url: req.originalUrl,
+    authorization: req.headers.authorization || null,
+    cookie: req.headers.cookie || null,
+    userAgent: req.headers['user-agent'] || null,
+  };
+  console.log('[debug] AUTH wildcard handler', authLog);
+
+  if (req.originalUrl.includes('/sign-in') || req.originalUrl.includes('/get-session')) {
+    console.log('[debug] AUTH wildcard login-phase request', authLog);
+  }
 
   const originalSetHeader = res.setHeader && res.setHeader.bind(res);
   if (originalSetHeader) {

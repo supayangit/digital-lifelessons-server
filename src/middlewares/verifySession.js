@@ -55,14 +55,21 @@ export async function verifySession(req, res, next) {
       cookie: req.headers.cookie || null,
     });
     const auth = getAuth();
-      let session = await auth.api.getSession({ headers: req.headers });
+    let session = await auth.api.getSession({ headers: req.headers });
 
-      // Fallback: some clients persist the session token and send it as
-      // `Authorization: Bearer <token>` instead of sending the cookie. If the
-      // normal header-based lookup failed but an Authorization header exists,
-      // try simulating the cookie header (better-auth reads cookies) so the
-      // session can be resolved.
-      if ((!session || !session.user) && req.headers.authorization) {
+    console.log('[debug] verifySession session.raw', {
+      hasSession: !!session,
+      userId: session?.user?.id || session?.user?.userId || null,
+      userEmail: session?.user?.email || null,
+      sessionPayloadPresent: !!session?.data,
+    });
+
+    // Fallback: some clients persist the session token and send it as
+    // `Authorization: Bearer <token>` instead of sending the cookie. If the
+    // normal header-based lookup failed but an Authorization header exists,
+    // try simulating the cookie header (better-auth reads cookies) so the
+    // session can be resolved.
+    if ((!session || !session.user) && req.headers.authorization) {
         try {
           const authHeader = String(req.headers.authorization || "");
           const token = authHeader.replace(/^Bearer\s+/i, "").trim();
