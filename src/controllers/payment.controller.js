@@ -20,6 +20,22 @@ export async function confirmCheckoutSession(req, res) {
   }
 }
 
+// Debug: re-run processing for a given Stripe session id
+export async function debugProcessSession(req, res) {
+  const sessionId = req.body?.session_id || req.body?.sessionId;
+  if (!sessionId) {
+    return res.status(400).json({ success: false, message: 'Missing session_id in request body.' });
+  }
+
+  try {
+    const result = await PaymentService.confirmCheckoutSession(sessionId);
+    return res.json({ success: true, result });
+  } catch (error) {
+    console.error('[v0] debugProcessSession error:', error?.message || error);
+    return res.status(500).json({ success: false, message: 'Failed to process session.' });
+  }
+}
+
 export async function stripeWebhook(req, res) {
   const signature = req.headers["stripe-signature"];
   if (!signature) {

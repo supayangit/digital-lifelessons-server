@@ -26,6 +26,12 @@ router.get(
   asyncHandler(PaymentController.confirmCheckoutSession)
 );
 
+// Temporary debug endpoint to re-process a Stripe session (body: { session_id })
+router.post(
+  "/debug/process-session",
+  asyncHandler(PaymentController.debugProcessSession)
+);
+
 // Create checkout session (protected)
 router.post(
   "/create-checkout-session",
