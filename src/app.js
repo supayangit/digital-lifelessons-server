@@ -43,11 +43,15 @@ import commentRoutes from "./routes/comment.routes.js";
 import favoriteRoutes from "./routes/favorite.routes.js";
 import reportRoutes from "./routes/report.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
+import * as PaymentController from "./controllers/payment.controller.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import likeRoutes from "./routes/like.routes.js";
 
 const app = express();
+
+const asyncHandler = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
 
 // Trust reverse proxy for secure cookies on Render
 app.set("trust proxy", 1);
@@ -181,6 +185,19 @@ app.all("/api/auth/*splat", authLimiter, (req, res) => {
 // Note: Stripe webhook route uses raw body — handled per-route in payment.routes.js
 // Mount payment routes before JSON parsing so /api/payments/webhook can receive raw body.
 app.use("/api/payments", paymentRoutes);
+
+// Support Stripe CLI forwarding directly to /webhook on port 5000
+app.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  asyncHandler(PaymentController.stripeWebhook)
+);
+app.get("/webhook", (req, res) => {
+  res.status(405).json({
+    success: false,
+    message: "Stripe webhook endpoint accepts POST only. Use /api/payments/webhook or POST to /webhook.",
+  });
+});
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
