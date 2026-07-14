@@ -10,10 +10,14 @@ function normalizeUserIdentifier(value) {
   return normalized || null;
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function buildUserFilter({ userId, userEmail }) {
   const filters = [];
   const normalizedUserId = normalizeUserIdentifier(userId);
-  const normalizedEmail = normalizeUserIdentifier(userEmail)?.toLowerCase();
+  const normalizedEmail = normalizeUserIdentifier(userEmail);
 
   if (normalizedUserId) {
     if (ObjectId.isValid(normalizedUserId)) {
@@ -25,6 +29,7 @@ function buildUserFilter({ userId, userEmail }) {
 
   if (normalizedEmail) {
     filters.push({ email: normalizedEmail });
+    filters.push({ email: { $regex: `^${escapeRegExp(normalizedEmail)}$`, $options: "i" } });
   }
 
   if (filters.length === 0) {
@@ -36,7 +41,7 @@ function buildUserFilter({ userId, userEmail }) {
 
 async function processStripeSession(session, db) {
   const userId = session.metadata?.userId;
-  const userEmail = session.metadata?.userEmail || session.customer_details?.email;
+  const userEmail = session.metadata?.userEmail || session.customer_details?.email || session.customer_email;
   const userFilter = buildUserFilter({ userId, userEmail });
 
   if (!userFilter) {
@@ -58,6 +63,14 @@ async function processStripeSession(session, db) {
     .findOne({ stripeSessionId: session.id });
 
   if (existingPayment) {
+    if (!user.isPremium) {
+      await db.collection("user").updateOne(
+        { _id: user._id },
+        { $set: { isPremium: true, premiumSince: new Date(), updatedAt: new Date() } }
+      );
+      console.log(`[v0] Duplicate Stripe session found, user ${user._id.toString()} upgraded to premium.`);
+    }
+
     console.log("[v0] Duplicate Stripe session skipped:", session.id);
     return { received: true, processed: true, alreadyProcessed: true };
   }
