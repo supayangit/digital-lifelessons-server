@@ -3,6 +3,7 @@ import { getDB } from "../config/db.js";
 import getStripe from "../config/stripe.js";
 import { PREMIUM_PRICE_BDT, PREMIUM_CURRENCY, PAYMENT_STATUS } from "../constants/index.js";
 
+// functions
 function normalizeUserIdentifier(value) {
   if (!value) return null;
   const normalized = String(value).trim();
