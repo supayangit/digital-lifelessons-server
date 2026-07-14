@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { bearer } from "better-auth/dist/plugins/bearer/index.mjs";
+import { bearer } from "better-auth/plugins/bearer";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { getDB } from "../config/db.js";
 
