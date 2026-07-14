@@ -57,28 +57,52 @@ async function processStripeSession(session, db) {
     console.error("[v0] User not found for Stripe session:", userFilter);
     return { received: true, processed: false };
   }
+  console.log('[v0] processStripeSession debug:', {
+    stripeSessionId: session.id,
+    metadata: session.metadata,
+    customer_email: session.customer_email || session.customer_details?.email,
+    resolvedUserFilter: userFilter,
+    matchedUserId: user._id?.toString?.() || String(user._id),
+    userIsPremiumBefore: !!user.isPremium,
+  });
 
   const existingPayment = await db
     .collection("payments")
     .findOne({ stripeSessionId: session.id });
 
   if (existingPayment) {
-    if (!user.isPremium) {
-      await db.collection("user").updateOne(
-        { _id: user._id },
-        { $set: { isPremium: true, premiumSince: new Date(), updatedAt: new Date() } }
-      );
-      console.log(`[v0] Duplicate Stripe session found, user ${user._id.toString()} upgraded to premium.`);
+    console.log('[v0] processStripeSession: existing payment record found', { stripeSessionId: session.id });
+    try {
+      if (!user.isPremium) {
+        const upd = await db.collection("user").updateOne(
+          { _id: user._id },
+          { $set: { isPremium: true, premiumSince: new Date(), updatedAt: new Date() } }
+        );
+        console.log('[v0] processStripeSession: updateOne result for duplicate case', { matchedCount: upd.matchedCount, modifiedCount: upd.modifiedCount });
+      }
+    } catch (err) {
+      console.error('[v0] processStripeSession: error updating user for duplicate payment', err);
+      return { received: true, processed: false, error: err.message };
     }
 
-    console.log("[v0] Duplicate Stripe session skipped:", session.id);
     return { received: true, processed: true, alreadyProcessed: true };
   }
 
-  await db.collection("user").updateOne(
-    { _id: user._id },
-    { $set: { isPremium: true, premiumSince: new Date(), updatedAt: new Date() } }
-  );
+  // First-time processing: update user then insert payment record
+  try {
+    const upd = await db.collection("user").updateOne(
+      { _id: user._id },
+      { $set: { isPremium: true, premiumSince: new Date(), updatedAt: new Date() } }
+    );
+    console.log('[v0] processStripeSession: updateOne result', { matchedCount: upd.matchedCount, modifiedCount: upd.modifiedCount });
+    if (!upd.matchedCount) {
+      console.warn('[v0] processStripeSession: updateOne did not match any document', { userFilter, userId: userId });
+      return { received: true, processed: false };
+    }
+  } catch (err) {
+    console.error('[v0] processStripeSession: error updating user', err);
+    return { received: true, processed: false, error: err.message };
+  }
 
   await db.collection("payments").insertOne({
     userId: user._id,
