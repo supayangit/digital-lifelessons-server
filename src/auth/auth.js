@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, bearer } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { getDB } from "../config/db.js";
 
@@ -22,6 +22,7 @@ export function createAuth() {
     database: mongodbAdapter(db),
     secret: process.env.BETTER_AUTH_SECRET,
     baseURL: process.env.BETTER_AUTH_URL,
+    plugins: [bearer()],
 
     emailAndPassword: {
       enabled: true,
