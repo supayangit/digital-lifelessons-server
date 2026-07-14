@@ -21,6 +21,11 @@ router.get("/webhook", (req, res) => {
   });
 });
 
+router.get(
+  "/confirm-checkout-session",
+  asyncHandler(PaymentController.confirmCheckoutSession)
+);
+
 // Create checkout session (protected)
 router.post(
   "/create-checkout-session",
